@@ -26,6 +26,7 @@ import org.apache.hadoop.dynamodb.DynamoDBItemWritable;
 import org.apache.hadoop.dynamodb.IopsCalculator;
 import org.apache.hadoop.dynamodb.preader.AbstractReadManager;
 import org.apache.hadoop.dynamodb.preader.DynamoDBRecordReaderContext;
+import org.apache.hadoop.dynamodb.preader.MultiKeyQueryReadManager;
 import org.apache.hadoop.dynamodb.preader.PageResultMultiplexer;
 import org.apache.hadoop.dynamodb.preader.QueryReadManager;
 import org.apache.hadoop.dynamodb.preader.RateController;
@@ -71,7 +72,7 @@ public abstract class AbstractDynamoDBRecordReader<K, V> implements RecordReader
     this.reporter = context.getReporter();
 
     int numSegments = split.getSegments().size();
-    if (numSegments != 1 && isQuery()) {
+    if (numSegments != 1 && isQuery() && !isMultiKeyQuery()) {
       throw new IllegalArgumentException("Query should always result in one segment");
     }
 
@@ -155,14 +156,21 @@ public abstract class AbstractDynamoDBRecordReader<K, V> implements RecordReader
     RateController rateController = new RateController(time, targetRate, DynamoDBConstants
         .RATE_CONTROLLER_WINDOW_SIZE_SEC, context.getAverageItemSize());
 
-    if (isQuery()) {
+    if (isMultiKeyQuery()) {
+      return new MultiKeyQueryReadManager(rateController, time, context);
+    } else if (isQuery()) {
       return new QueryReadManager(rateController, time, context);
+    } else {
+      return new ScanReadManager(rateController, time, context);
     }
-    return new ScanReadManager(rateController, time, context);
   }
 
   private boolean isQuery() {
     return split.getFilterPushdown().getKeyConditions().size() > 0;
+  }
+
+  private boolean isMultiKeyQuery() {
+    return split.getFilterPushdown().getKeyConditions().size() > 0 && split.getTotalSegments() > 0;
   }
 
   private void printInitInfo() {

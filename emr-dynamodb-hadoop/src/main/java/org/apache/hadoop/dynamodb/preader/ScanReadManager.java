@@ -46,8 +46,13 @@ public class ScanReadManager extends AbstractReadManager {
 
     // Queue up segment scan requests
     for (Integer segment : shuffleSgments) {
-      enqueueReadRequestToTail(new ScanRecordReadRequest(this, context, segment, null /*
-      lastEvaluatedKey */));
+      enqueueReadRequestToTail(newReadRequest(context, segment));
     }
+  }
+
+  protected AbstractRecordReadRequest newReadRequest(DynamoDBRecordReaderContext context,
+      int segment) {
+    return new ScanRecordReadRequest(this, context, segment, null /*
+      lastEvaluatedKey */);
   }
 }

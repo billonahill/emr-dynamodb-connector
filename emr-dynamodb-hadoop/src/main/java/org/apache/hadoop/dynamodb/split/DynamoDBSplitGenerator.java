@@ -35,18 +35,13 @@ public class DynamoDBSplitGenerator {
       segmentsPerSplit.add(new ArrayList<Integer>());
     }
 
-    // Round-robin which split gets which segment id
-    int mapper = 0;
-    for (int i = 0; i < numSegments; i++) {
-      segmentsPerSplit.get(mapper).add(i);
-      mapper = (mapper + 1) % numMappers;
-    }
+    assignSegmentsToSplits(segmentsPerSplit, numSegments, numMappers);
 
     long approxItemCountPerSplit = conf.getLong(DynamoDBConstants.ITEM_COUNT, 0) / ((long)
         numMappers);
     InputSplit[] splits = new InputSplit[numMappers];
     for (int i = 0; i < numMappers; i++) {
-      log.info("Assigning " + segmentsPerSplit.get(i).size() + " segments to mapper " + i + ": "
+      log.debug("Assigning " + segmentsPerSplit.get(i).size() + " segments to mapper " + i + ": "
           + segmentsPerSplit.get(i));
       splits[i] = createDynamoDBSplit(getInputPath(conf), approxItemCountPerSplit, i,
           segmentsPerSplit.get(i), numSegments);
@@ -57,6 +52,16 @@ public class DynamoDBSplitGenerator {
 
   protected Path getInputPath(JobConf conf) {
     return null;
+  }
+
+  protected void assignSegmentsToSplits(List<List<Integer>> segmentsPerSplit, int numSegments,
+      int numMappers) {
+    // Round-robin which split gets which segment id
+    int mapper = 0;
+    for (int i = 0; i < numSegments; i++) {
+      segmentsPerSplit.get(mapper).add(i);
+      mapper = (mapper + 1) % numMappers;
+    }
   }
 
   protected DynamoDBSplit createDynamoDBSplit(Path path, long approxItemCount, int splitId,

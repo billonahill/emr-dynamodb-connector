@@ -126,6 +126,33 @@ import <path> <table-name> [<write-ratio>]
 write-ratio: maximum percent of the specified DynamoDB table's write capacity to use for import
 ```
 
+## Spark DynamoDB Exporter
+
+The `DynamoDBExport` class supports exporting a full table S3 using Spark via
+`DynamoDBInputFormat`, `DynamoDBOutputFormat` and `DynamoDBItemWritable`, as
+described [here](#example-inputoutput-formats-with-spark).
+[SparkDynamoDBExport](emr-dynamodb-tools/src/main/java/org/apache/hadoop/dynamodb/tools/SparkDynamoDBExport.java) 
+provides the ability to export part of a table based on a Global Secondary Index (GSI) criteria.
+
+#### Example: Invoke via Command Line
+In the example below the `products-updated-at-timestamp-index-idx` GSI has 10k discrete buckets,
+which is a requirement for the current implementation. The below example shows how to export an
+hours worth of updated product ids and names from the command line into S3.
+Run with `-h` to see more usage details.
+```bash
+# first comment out <scope>provided</scope> for spark and hadoop-aws in emr-dynamodb-tools/pom.xml
+$ mvn clean install -pl emr-dynamodb-tools -DskipTests -Dcheckstyle.skip=true
+$ java -cp `ls ./emr-dynamodb-tools/target/emr-dynamodb-tools-*-SNAPSHOT-jar-with-dependencies.jar`:emr-dynamodb-hadoop/src/test/resources/. \
+ org.apache.hadoop.dynamodb.tools.SparkDynamoDBExport \
+  --table_name products \
+  --index_name products-updated-at-timestamp-index-idx \
+  --row_key updated_at_hk_field --sort_key updated_timestamp \
+  --min_sort_key 2022-03-02T12:00:00 --max_sort_key 2022-03-02T13:00:00 \
+  --output_path s3a://[my-bucket]/products_spark_ddb_export_json \
+  --attributes id,product_name \
+  --sample_percent 0.01 \
+  --local_mode
+```
 ## Maven Dependency
 To depend on the specific components in your projects, add one (or both) of the following to your
 `pom.xml`.

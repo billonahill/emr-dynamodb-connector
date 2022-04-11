@@ -109,7 +109,7 @@ public class HiveDynamoDBInputFormat extends DynamoDBInputFormat {
   }
 
   @Override
-  protected DynamoDBSplitGenerator getSplitGenerator() {
+  protected DynamoDBSplitGenerator getSplitGenerator(JobConf conf) {
     return new HiveDynamoDBSplitGenerator();
   }
 
