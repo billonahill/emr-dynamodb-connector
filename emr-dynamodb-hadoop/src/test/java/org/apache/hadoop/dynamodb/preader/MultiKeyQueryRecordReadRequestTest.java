@@ -99,6 +99,7 @@ public final class MultiKeyQueryRecordReadRequestTest {
     when(context.getConf()).thenReturn(jobConf);
     when(context.getSplit()).thenReturn(split);
     when(split.getFilterPushdown()).thenReturn(filter);
+    when(filter.clone()).thenReturn(filter);
     when(consumedCapacity.getCapacityUnits()).thenReturn(0.6);
 
     int segment = 7;
