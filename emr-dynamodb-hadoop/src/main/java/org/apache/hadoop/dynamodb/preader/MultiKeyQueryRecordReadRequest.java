@@ -20,6 +20,7 @@ import org.apache.hadoop.dynamodb.DynamoDBConstants;
 import org.apache.hadoop.dynamodb.DynamoDBFibonacciRetryer.RetryResult;
 import org.apache.hadoop.dynamodb.filter.DynamoDBFilterOperator;
 import org.apache.hadoop.dynamodb.filter.DynamoDBNAryFilter;
+import org.apache.hadoop.dynamodb.filter.DynamoDBQueryFilter;
 import org.apache.hadoop.dynamodb.preader.RateController.RequestLimit;
 import org.apache.hadoop.dynamodb.type.DynamoDBTypeFactory;
 import org.apache.hadoop.mapred.JobConf;
@@ -41,7 +42,7 @@ public class MultiKeyQueryRecordReadRequest extends AbstractRecordReadRequest {
 
   private static String getRequiredValue(JobConf jobConf, String attribute) {
     String value = jobConf.get(attribute);
-    if (value == null  || value.length() == 0) {
+    if (value == null || value.length() == 0) {
       throw new IllegalArgumentException(
           "required job config not found: " + attribute);
     }
@@ -53,9 +54,14 @@ public class MultiKeyQueryRecordReadRequest extends AbstractRecordReadRequest {
     String rowKeyName = getRequiredValue(context.getConf(), DynamoDBConstants.ROW_KEY_NAME);
     getRequiredValue(context.getConf(), DynamoDBConstants.INPUT_TABLE_NAME);
 
-    context.getSplit().getFilterPushdown().addKeyCondition(
-        new DynamoDBNAryFilter(rowKeyName, DynamoDBFilterOperator.EQ,
-            DynamoDBTypeFactory.NUMBER_TYPE, Long.toString(segment)));
+    DynamoDBNAryFilter keyFilter = new DynamoDBNAryFilter(rowKeyName, DynamoDBFilterOperator.EQ,
+        DynamoDBTypeFactory.NUMBER_TYPE, Long.toString(segment));
+
+    // The filter passed has settings common to all readers, so we clone it and add filters that
+    // are specific to this reader (the key). Without cloning, we'd mutate a shared filter which
+    // would cause issues.
+    DynamoDBQueryFilter dynamoDBQueryFilter = context.getSplit().getFilterPushdown().clone();
+    dynamoDBQueryFilter.addKeyCondition(keyFilter);
 
     String attributesCsv = context.getConf().get(DynamoDBConstants.ATTRIBUTES_TO_GET);
     String[] attributes = attributesCsv != null && attributesCsv.trim().length() > 0
@@ -64,7 +70,7 @@ public class MultiKeyQueryRecordReadRequest extends AbstractRecordReadRequest {
 
     // Read from DynamoDB
     RetryResult<QueryResult> retryResult = context.getClient()
-        .queryTable(tableName, context.getSplit().getFilterPushdown(), lastEvaluatedKey, lim.items,
+        .queryTable(tableName, dynamoDBQueryFilter, lastEvaluatedKey, lim.items,
             context.getReporter(), attributes);
 
     QueryResult result = retryResult.result;

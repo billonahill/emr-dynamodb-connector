@@ -19,10 +19,21 @@ import java.util.Map;
 
 public class DynamoDBQueryFilter {
 
-  private final Map<String, Condition> keyConditions = new HashMap<>();
-  private final Map<String, Condition> scanFilter = new HashMap<>();
+  private final Map<String, Condition> keyConditions;
+  private final Map<String, Condition> scanFilter;
 
   private DynamoDBIndexInfo index;
+
+  public DynamoDBQueryFilter() {
+    this(new HashMap<>(), new HashMap<>(), null);
+  }
+
+  private DynamoDBQueryFilter(Map<String, Condition> keyConditions,
+      Map<String, Condition> scanFilter, DynamoDBIndexInfo index) {
+    this.keyConditions = keyConditions;
+    this.scanFilter = scanFilter;
+    this.index = index;
+  }
 
   public DynamoDBIndexInfo getIndex() {
     return index;
@@ -46,5 +57,17 @@ public class DynamoDBQueryFilter {
 
   public void addScanFilter(DynamoDBFilter filter) {
     this.scanFilter.put(filter.getColumnName(), filter.getDynamoDBCondition());
+  }
+
+  public DynamoDBQueryFilter clone() {
+    return new DynamoDBQueryFilter(clone(keyConditions), clone(scanFilter), index);
+  }
+
+  private Map<String, Condition> clone(Map<String, Condition> conditionMap) {
+    Map<String, Condition> clone = new HashMap<>();
+    for (String key : conditionMap.keySet()) {
+      clone.put(key, conditionMap.get(key).clone());
+    }
+    return clone;
   }
 }
